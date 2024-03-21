@@ -123,9 +123,11 @@ void ui_quit(void)
 
 void ui_exit(void)
 {
-    Wave w;
     pomo_deinit();
     UnloadSound(ui_ctx_.notif_work.sound);
+    UnloadSound(ui_ctx_.notif_long_break.sound);
+    UnloadSound(ui_ctx_.notif_short_break.sound);
+    UnloadTexture(ui_ctx_.tomato);
     CloseAudioDevice();
     CloseWindow();
 }
