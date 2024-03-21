@@ -17,5 +17,5 @@ A very simple minimalistic Pomodoro timer in C using only Raylib.
 
 ## Screenshot:
 
-![Pomo-Timer sreenshot](https:/github.com/Pickman22/pomo-timer/blob/master/pomo.png)
+![Pomo-Timer sreenshot](https://github.com/Pickman22/pomo-timer/blob/master/resources/pomo.png)
 
