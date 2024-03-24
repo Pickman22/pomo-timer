@@ -3,11 +3,18 @@
 
 #include <stddef.h>
 
-#define POMO_DEFAULT_CONFIG                                           \
-    (pomo_config)                                                     \
-    {                                                                 \
-        .short_timeout = 1, .long_timeout = 1, .num_short_breaks = 1, \
-        .exec_rate = (1. / 60.), .work_timeout = 1,                   \
+#define POMO_SHORT_TIMEOUT    (5u)
+#define POMO_LONG_TIMEOUT     (15u)
+#define POMO_WORK_TIMEOUT     (25u)
+#define POMO_NUM_SHORT_BREAKS (3u)
+
+#define POMO_DEFAULT_CONFIG                                                 \
+    (pomo_config)                                                           \
+    {                                                                       \
+        .short_timeout = POMO_SHORT_TIMEOUT,                                \
+        .long_timeout = POMO_LONG_TIMEOUT,                                  \
+        .num_short_breaks = POMO_NUM_SHORT_BREAKS, .exec_rate = (1. / 60.), \
+        .work_timeout = POMO_WORK_TIMEOUT,                                  \
     }
 
 typedef enum
