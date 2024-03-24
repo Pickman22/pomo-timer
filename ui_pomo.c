@@ -35,6 +35,8 @@ static void ui_draw(void);
 static void draw_minutes(void);
 static void draw_status_text(void);
 static void draw_pomo(void);
+static void draw_help_button(void);
+static void draw_help_message(void);
 static void ui_quit(void);
 static void ui_pomo_evt_cbk(const pomo_notif *notif);
 
@@ -148,6 +150,7 @@ static void ui_draw(void)
     draw_minutes();
     draw_status_text();
     draw_pomo();
+    draw_help_button();
 }
 
 static void draw_status_text(void)
@@ -186,6 +189,43 @@ static void draw_pomo(void)
 {
     int pos_x = UI_WINDOW_CENTER_X(UI_POMO_IMG_SIZE);
     DrawTexture(ui_ctx_.tomato, pos_x, 40u, WHITE);
+}
+
+static void draw_help_button(void)
+{
+    int width = MeasureText(UI_HELP_BUTTON_MSG, UI_HELP_BUTTON_FONT_SIZE);
+    int button_pos_y = UI_HELP_POPUP_PADDING;
+    int button_pos_x = UI_HELP_POPUP_PADDING;
+    Rectangle button = (Rectangle){
+        .height = UI_HELP_BUTTON_SIZE,
+        .width = UI_HELP_BUTTON_SIZE,
+        .y = button_pos_y,
+        .x = button_pos_x,
+    };
+    if (CheckCollisionPointRec(GetMousePosition(), button)) {
+        DrawRectangleRounded(button, 0.3, 8, ui_ctx_.tomato_color);
+        draw_help_message();
+    }
+    else {
+        DrawRectangleRounded(button, 0.3, 8, UI_HELP_BUTTON_COLOR);
+    }
+    DrawText(UI_HELP_BUTTON_MSG, button_pos_x + width / 2., button_pos_y,
+             UI_HELP_BUTTON_FONT_SIZE + 5, RAYWHITE);
+}
+
+static void draw_help_message(void)
+{
+    Rectangle poup_box = {
+        .height = UI_HELP_POP_HEIGHT,
+        .width = MeasureText(UI_HELP_MSG, UI_HELP_MSG_FONT_SIZE) +
+                 UI_HELP_MSG_PADDING,
+        .y = 2 * UI_HELP_POPUP_PADDING + UI_HELP_BUTTON_SIZE,
+        .x = UI_HELP_MSG_TEXT_PADDING,
+    };
+    DrawRectangleRounded(poup_box, 0.05, 8, UI_HELP_POPUP_COLOR);
+    DrawText(UI_HELP_MSG, poup_box.x + UI_HELP_MSG_TEXT_PADDING,
+             poup_box.y + UI_HELP_MSG_TEXT_PADDING, UI_HELP_MSG_FONT_SIZE,
+             UI_HELP_MSG_COLOR);
 }
 
 static void ui_pomo_evt_cbk(const pomo_notif *notif)
