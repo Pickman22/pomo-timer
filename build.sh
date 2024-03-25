@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+set -e
 rm -rf build 2> /dev/null
 mkdir build 2> /dev/null
 gcc -std=c2x -Wall -Wextra -Wno-gnu -pedantic -g0 -ggdb -I/opt/homebrew/Cellar/raylib/5.0/include main.c -c

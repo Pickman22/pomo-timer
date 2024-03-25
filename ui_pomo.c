@@ -23,10 +23,10 @@ typedef struct ui_ctx
     Sound long_break_bell;
     Texture2D tomato;
     Color tomato_color;
-    bool is_quit;
     ui_notif notif_short_break;
     ui_notif notif_long_break;
     ui_notif notif_work;
+    ui_notif notif_pause;
 } ui_ctx;
 
 static void ui_begin(void);
@@ -37,7 +37,6 @@ static void draw_status_text(void);
 static void draw_pomo(void);
 static void draw_help_button(void);
 static void draw_help_message(void);
-static void ui_quit(void);
 static void ui_pomo_evt_cbk(const pomo_notif *notif);
 
 static ui_ctx ui_ctx_;
@@ -68,15 +67,14 @@ void ui_init(void)
         GetImageColor(tomato_image, UI_POMO_IMG_SIZE / 2, UI_POMO_IMG_SIZE / 2);
     ui_ctx_.tomato = LoadTextureFromImage(tomato_image);
     UnloadImage(tomato_image);
-    ui_ctx_.is_quit = false;
+    SetExitKey(UI_KEY_QUIT);
 
     /* Setup listeners. */
-    keys_attach(pomo_toggle, INPUT_FLAG_PAUSE);
-    keys_attach(pomo_start, INPUT_FLAG_START);
-    keys_attach(pomo_long, INPUT_FLAG_LONG_BREAK);
-    keys_attach(pomo_short, INPUT_FLAG_SHORT_BREAK);
-    keys_attach(pomo_work, INPUT_FLAG_WORK);
-    keys_attach(ui_quit, INPUT_FLAG_QUIT);
+    keys_attach(pomo_toggle, UI_KEY_PAUSE);
+    keys_attach(pomo_start, UI_KEY_START);
+    keys_attach(pomo_long, UI_KEY_LONG_BREAK);
+    keys_attach(pomo_short, UI_KEY_SHORT_BREAK);
+    keys_attach(pomo_work, UI_KEY_WORK);
 
     /* Setup pomodoro event listeners. */
     ui_ctx_.notif_work = (ui_notif){.notif =
@@ -102,14 +100,22 @@ void ui_init(void)
                        },
                    .sound = LoadSound("resources/bell.wav")};
 
+    ui_ctx_.notif_pause = (ui_notif){.notif =
+                                         (pomo_notif){
+                                             .notif = ui_pomo_evt_cbk,
+                                             .evt = POMO_EVT_PAUSE,
+                                         },
+                                     .sound = LoadSound("resources/pause.wav")};
+
     pomo_attach(&ui_ctx_.notif_work.notif);
     pomo_attach(&ui_ctx_.notif_short_break.notif);
     pomo_attach(&ui_ctx_.notif_long_break.notif);
+    pomo_attach(&ui_ctx_.notif_pause.notif);
 }
 
 void ui_run(void)
 {
-    while (!WindowShouldClose() && !ui_ctx_.is_quit) {
+    while (!WindowShouldClose()) {
         ui_begin();
         keys_run();
         pomo_run();
@@ -118,17 +124,13 @@ void ui_run(void)
     }
 }
 
-void ui_quit(void)
-{
-    ui_ctx_.is_quit = true;
-}
-
 void ui_exit(void)
 {
     pomo_deinit();
     UnloadSound(ui_ctx_.notif_work.sound);
     UnloadSound(ui_ctx_.notif_long_break.sound);
     UnloadSound(ui_ctx_.notif_short_break.sound);
+    UnloadSound(ui_ctx_.notif_pause.sound);
     UnloadTexture(ui_ctx_.tomato);
     CloseAudioDevice();
     CloseWindow();

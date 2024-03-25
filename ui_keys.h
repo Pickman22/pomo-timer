@@ -1,6 +1,8 @@
 #ifndef UI_KEYS
 #define UI_KEYS
 
+#include "raylib.h"
+
 #define INPUT_FLAG_START       (1u)
 #define INPUT_FLAG_RESTART     (2u)
 #define INPUT_FLAG_PAUSE       (4u)
@@ -21,8 +23,7 @@
 
 typedef void (*keys_notif)(void);
 
-unsigned int keys_get(void);
-void keys_attach(keys_notif notif, unsigned int flag);
+void keys_attach(keys_notif notif, unsigned int key);
 void keys_run(void);
 
 #endif

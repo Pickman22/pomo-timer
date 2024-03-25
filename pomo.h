@@ -41,6 +41,7 @@ typedef enum
     POMO_EVT_WORK,
     POMO_EVT_SHORT_BREAK,
     POMO_EVT_LONG_BREAK,
+    POMO_EVT_PAUSE,
     POMO_EVT_NUM
 } pomo_evt;
 
