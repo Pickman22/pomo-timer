@@ -35,22 +35,6 @@ typedef enum
     POMO_BREAK_NUM,
 } pomo_break;
 
-typedef enum
-{
-    POMO_EVT_NONE = 0,
-    POMO_EVT_WORK,
-    POMO_EVT_SHORT_BREAK,
-    POMO_EVT_LONG_BREAK,
-    POMO_EVT_PAUSE,
-    POMO_EVT_NUM
-} pomo_evt;
-
-typedef struct pomo_notif
-{
-    void (*notif)(const struct pomo_notif *notif);
-    pomo_evt evt;
-} pomo_notif;
-
 typedef struct pomo_config
 {
     unsigned int short_timeout;
@@ -68,16 +52,10 @@ typedef struct pomo_time
 
 void pomo_init(pomo_config config);
 pomo_time pomo_get_time(void);
+void pomo_start(void);
 void pomo_run(void);
 pomo_state pomo_get_state(void);
 void pomo_deinit(void);
-void pomo_pause(void);
-void pomo_resume(void);
-void pomo_toggle(void);
-void pomo_start(void);
-void pomo_long(void);
-void pomo_short(void);
-void pomo_work(void);
-void pomo_attach(const pomo_notif *notif);
+void pomo_set_state(pomo_state state);
 
 #endif

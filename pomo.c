@@ -30,7 +30,6 @@ typedef struct pomo_ctx
     pomo_state state;
     pomo_state prev_state;
     pomo_timer timer;
-    const pomo_notif *notify_list[MAX_POMO_NOTIF_EVT];
 } pomo_ctx;
 
 static pomo_ctx pomo_ctx_;
@@ -39,13 +38,14 @@ static pomo_time ticks_to_pomotime(unsigned int ticks);
 static void long_break(pomo_ctx *ctx);
 static void short_break(pomo_ctx *ctx);
 static void work(pomo_ctx *ctx);
+void pause(pomo_ctx *ctx);
+void resume(pomo_ctx *ctx);
+void toggle(pomo_ctx *ctx);
 static void timer_init(pomo_timer *tmr, unsigned int tout,
                        pomo_timer_notif notif);
 static void timer_tick(pomo_timer *tmr);
 static void tmr_work_tout_notif(struct pomo_timer *timer);
 static void tmr_brk_tout_notif(struct pomo_timer *timer);
-static void pomo_notify(const pomo_notif *listeners[MAX_POMO_NOTIF_EVT],
-                        pomo_evt evt);
 
 void pomo_init(pomo_config config)
 {
@@ -88,16 +88,6 @@ void pomo_run(void)
     }
 }
 
-void pomo_attach(const pomo_notif *notif)
-{
-    for (size_t i = 0u; i < MAX_POMO_NOTIF_EVT; i++) {
-        if (pomo_ctx_.notify_list[i] == NULL) {
-            pomo_ctx_.notify_list[i] = notif;
-            break;
-        }
-    }
-}
-
 pomo_time pomo_get_time(void)
 {
     return ticks_to_pomotime(pomo_ctx_.timer.ticks);
@@ -108,22 +98,40 @@ pomo_state pomo_get_state(void)
     return pomo_ctx_.state;
 }
 
-void pomo_pause(void)
+void pomo_set_state(pomo_state state)
 {
-    if (pomo_ctx_.state == POMO_STATE_WORK ||
-        pomo_ctx_.state == POMO_STATE_SHORT_BREAK ||
-        pomo_ctx_.state == POMO_STATE_LONG_BREAK) {
-        pomo_ctx_.prev_state = pomo_ctx_.state;
-        pomo_ctx_.state = POMO_STATE_PAUSE;
-        pomo_notify(pomo_ctx_.notify_list, POMO_EVT_PAUSE);
+    switch (state) {
+    case POMO_STATE_WORK:
+        work(&pomo_ctx_);
+        break;
+    case POMO_STATE_SHORT_BREAK:
+        short_break(&pomo_ctx_);
+        break;
+    case POMO_STATE_LONG_BREAK:
+        long_break(&pomo_ctx_);
+        break;
+    case POMO_STATE_PAUSE:
+        toggle(&pomo_ctx_);
+        break;
+
+    default:
+        break;
     }
 }
 
-void pomo_resume(void)
+void pause(pomo_ctx *ctx)
 {
-    if (pomo_ctx_.state == POMO_STATE_PAUSE) {
-        pomo_ctx_.state = pomo_ctx_.prev_state;
-        pomo_notify(pomo_ctx_.notify_list, POMO_EVT_PAUSE);
+    if (ctx->state == POMO_STATE_WORK || ctx->state == POMO_STATE_SHORT_BREAK ||
+        ctx->state == POMO_STATE_LONG_BREAK) {
+        ctx->prev_state = ctx->state;
+        ctx->state = POMO_STATE_PAUSE;
+    }
+}
+
+void resume(pomo_ctx *ctx)
+{
+    if (ctx->state == POMO_STATE_PAUSE) {
+        ctx->state = ctx->prev_state;
     }
 }
 
@@ -134,40 +142,25 @@ void pomo_start(void)
     }
 }
 
-void pomo_work(void)
+void toggle(pomo_ctx *ctx)
 {
-    work(&pomo_ctx_);
-}
-
-void pomo_toggle(void)
-{
-    if (pomo_ctx_.state != POMO_STATE_PAUSE) {
-        pomo_pause();
+    if (ctx->state != POMO_STATE_PAUSE) {
+        pause(ctx);
     }
     else {
-        pomo_resume();
+        resume(ctx);
     }
-}
-
-void pomo_long(void)
-{
-    long_break(&pomo_ctx_);
-}
-
-void pomo_short(void)
-{
-    short_break(&pomo_ctx_);
 }
 
 void pomo_deinit(void)
 {
+    pomo_ctx_ = (pomo_ctx){};
 }
 
 void long_break(pomo_ctx *ctx)
 {
     ctx->state = POMO_STATE_LONG_BREAK;
     ctx->short_break_counts = 0u;
-    pomo_notify(ctx->notify_list, POMO_EVT_LONG_BREAK);
     timer_init(&ctx->timer, ctx->long_timeout_ticks, tmr_brk_tout_notif);
 }
 
@@ -175,7 +168,6 @@ void short_break(pomo_ctx *ctx)
 {
     ctx->state = POMO_STATE_SHORT_BREAK;
     ctx->short_break_counts++;
-    pomo_notify(ctx->notify_list, POMO_EVT_SHORT_BREAK);
     timer_init(&ctx->timer, ctx->short_timeout_ticks, tmr_brk_tout_notif);
 }
 
@@ -183,7 +175,6 @@ void work(pomo_ctx *ctx)
 {
     timer_init(&ctx->timer, ctx->work_timeout_ticks, tmr_work_tout_notif);
     ctx->state = POMO_STATE_WORK;
-    pomo_notify(pomo_ctx_.notify_list, POMO_EVT_WORK);
 }
 
 static pomo_time ticks_to_pomotime(unsigned int ticks)
@@ -227,14 +218,4 @@ static void tmr_brk_tout_notif(struct pomo_timer *timer)
 {
     pomo_ctx *ctx = CONTAINER_OF(timer, pomo_ctx, timer);
     work(ctx);
-}
-
-static void pomo_notify(const pomo_notif *listeners[MAX_POMO_NOTIF_EVT],
-                        pomo_evt evt)
-{
-    for (size_t i = 0u; i < MAX_POMO_NOTIF_EVT; i++) {
-        if (listeners[i] && (listeners[i]->evt == evt) && listeners[i]->notif) {
-            listeners[i]->notif(listeners[i]);
-        }
-    }
 }

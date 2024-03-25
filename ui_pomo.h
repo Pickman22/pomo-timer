@@ -15,7 +15,7 @@
 #define UI_UNKNOWN_MSG           ("?")
 #define UI_POMO_IMG_SIZE         (170u)
 #define UI_HELP_MSG_PADDING      (30u)
-#define UI_HELP_POPUP_COLOR      (LIGHTGRAY)
+#define UI_HELP_POPUP_COLOR      (GRAY)
 #define UI_HELP_MSG_COLOR        (RAYWHITE)
 #define UI_HELP_MSG_TEXT_PADDING (10u)
 #define UI_HELP_MSG_FONT_SIZE    (18)

@@ -11,10 +11,21 @@
 #define UI_WINDOW_CENTER_X(w) ((UI_WIDTH - (w)) / 2)
 #define UI_WINDOW_CENTER_Y(h) ((UI_HEIGHT - (h)) / 2)
 
+typedef enum
+{
+    UI_POMO_EVT_START = 0,
+    UI_POMO_EVT_WORK,
+    UI_POMO_EVT_SHORT_BREAK,
+    UI_POMO_EVT_LONG_BREAK,
+    UI_POMO_EVT_PAUSE,
+    UI_POMO_EVT_NUM
+} ui_pomo_evt;
+
 typedef struct ui_notif
 {
     Sound sound;
-    pomo_notif notif;
+    ui_pomo_evt evt;
+    keys_notif notif;
 } ui_notif;
 
 typedef struct ui_ctx
@@ -37,7 +48,8 @@ static void draw_status_text(void);
 static void draw_pomo(void);
 static void draw_help_button(void);
 static void draw_help_message(void);
-static void ui_pomo_evt_cbk(const pomo_notif *notif);
+static void ui_pomo_evt_cbk(keys_notif *notif);
+static void ui_pomo_start_cbk(keys_notif *notif);
 
 static ui_ctx ui_ctx_;
 
@@ -69,52 +81,51 @@ void ui_init(void)
     UnloadImage(tomato_image);
     SetExitKey(UI_KEY_QUIT);
 
-    /* Setup listeners. */
-    keys_attach(pomo_toggle, UI_KEY_PAUSE);
-    keys_attach(pomo_start, UI_KEY_START);
-    keys_attach(pomo_long, UI_KEY_LONG_BREAK);
-    keys_attach(pomo_short, UI_KEY_SHORT_BREAK);
-    keys_attach(pomo_work, UI_KEY_WORK);
-
-    /* Setup pomodoro event listeners. */
-    ui_ctx_.notif_work = (ui_notif){.notif =
-                                        (pomo_notif){
-                                            .notif = ui_pomo_evt_cbk,
-                                            .evt = POMO_EVT_WORK,
-                                        },
-                                    .sound = LoadSound("resources/bell.wav")};
-
-    ui_ctx_.notif_short_break =
-        (ui_notif){.notif =
-                       (pomo_notif){
-                           .notif = ui_pomo_evt_cbk,
-                           .evt = POMO_EVT_SHORT_BREAK,
-                       },
-                   .sound = LoadSound("resources/bell.wav")};
-
-    ui_ctx_.notif_long_break =
-        (ui_notif){.notif =
-                       (pomo_notif){
-                           .notif = ui_pomo_evt_cbk,
-                           .evt = POMO_EVT_LONG_BREAK,
-                       },
-                   .sound = LoadSound("resources/bell.wav")};
-
-    ui_ctx_.notif_pause = (ui_notif){.notif =
-                                         (pomo_notif){
-                                             .notif = ui_pomo_evt_cbk,
-                                             .evt = POMO_EVT_PAUSE,
-                                         },
-                                     .sound = LoadSound("resources/pause.wav")};
-
-    pomo_attach(&ui_ctx_.notif_work.notif);
-    pomo_attach(&ui_ctx_.notif_short_break.notif);
-    pomo_attach(&ui_ctx_.notif_long_break.notif);
-    pomo_attach(&ui_ctx_.notif_pause.notif);
+    ui_ctx_.notif_work = (ui_notif){
+        .evt = UI_POMO_EVT_WORK,
+        .sound = LoadSound("resources/bell.wav"),
+        .notif = (keys_notif){.key = UI_KEY_WORK, .notify = ui_pomo_evt_cbk},
+    };
+    ui_ctx_.notif_pause = (ui_notif){
+        .evt = UI_POMO_EVT_PAUSE,
+        .sound = LoadSound("resources/pause.wav"),
+        .notif =
+            (keys_notif){
+                .key = UI_KEY_PAUSE,
+                .notify = ui_pomo_evt_cbk,
+            },
+    };
+    ui_ctx_.notif_short_break = (ui_notif){
+        .evt = UI_POMO_EVT_SHORT_BREAK,
+        .sound = LoadSound("resources/bell.wav"),
+        .notif =
+            (keys_notif){
+                .key = UI_KEY_SHORT_BREAK,
+                .notify = ui_pomo_evt_cbk,
+            },
+    };
+    ui_ctx_.notif_long_break = (ui_notif){
+        .evt = UI_POMO_EVT_LONG_BREAK,
+        .sound = LoadSound("resources/bell.wav"),
+        .notif =
+            (keys_notif){
+                .key = UI_KEY_LONG_BREAK,
+                .notify = ui_pomo_evt_cbk,
+            },
+    };
 }
 
 void ui_run(void)
 {
+    keys_attach(&ui_ctx_.notif_work.notif);
+    keys_attach(&ui_ctx_.notif_pause.notif);
+    keys_attach(&ui_ctx_.notif_short_break.notif);
+    keys_attach(&ui_ctx_.notif_long_break.notif);
+    keys_attach(&(keys_notif){
+        .notify = ui_pomo_start_cbk,
+        .key = UI_KEY_START,
+    });
+
     while (!WindowShouldClose()) {
         ui_begin();
         keys_run();
@@ -230,8 +241,30 @@ static void draw_help_message(void)
              UI_HELP_MSG_COLOR);
 }
 
-static void ui_pomo_evt_cbk(const pomo_notif *notif)
+static void ui_pomo_start_cbk(keys_notif *notif)
+{
+    (void)notif;
+    pomo_start();
+}
+
+static void ui_pomo_evt_cbk(keys_notif *notif)
 {
     ui_notif *notif_ = CONTAINER_OF(notif, ui_notif, notif);
     PlaySound(notif_->sound);
+    switch (notif_->evt) {
+    case UI_POMO_EVT_WORK:
+        pomo_set_state(POMO_STATE_WORK);
+        break;
+    case UI_POMO_EVT_PAUSE:
+        pomo_set_state(POMO_STATE_PAUSE);
+        break;
+    case UI_POMO_EVT_SHORT_BREAK:
+        pomo_set_state(POMO_STATE_SHORT_BREAK);
+        break;
+    case UI_POMO_EVT_LONG_BREAK:
+        pomo_set_state(POMO_STATE_LONG_BREAK);
+        break;
+    default:
+        break;
+    }
 }

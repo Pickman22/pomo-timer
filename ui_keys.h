@@ -21,9 +21,14 @@
 #define UI_KEY_QUIT        (KEY_Q)
 #define UI_KEY_WORK        (KEY_W)
 
-typedef void (*keys_notif)(void);
+typedef struct keys_notif
+{
+    KeyboardKey key;
+    void (*notify)(struct keys_notif *notif);
+} keys_notif;
 
-void keys_attach(keys_notif notif, unsigned int key);
+void keys_attach(keys_notif *notif);
+
 void keys_run(void);
 
 #endif

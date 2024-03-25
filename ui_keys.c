@@ -4,20 +4,13 @@
 
 #define MAX_LISTENERS (64u)
 
-typedef struct
-{
-    keys_notif notify;
-    KeyboardKey key;
-} key_listener;
+static keys_notif *key_notifiers[MAX_LISTENERS];
 
-static key_listener key_listeners[MAX_LISTENERS];
-
-void keys_attach(keys_notif notif, KeyboardKey key)
+void keys_attach(keys_notif *notif)
 {
     for (size_t i = 0u; i < MAX_LISTENERS; i++) {
-        if (key_listeners[i].notify == NULL) {
-            key_listeners[i].notify = notif;
-            key_listeners[i].key = key;
+        if (key_notifiers[i] == NULL) {
+            key_notifiers[i] = notif;
             break;
         }
     }
@@ -25,10 +18,10 @@ void keys_attach(keys_notif notif, KeyboardKey key)
 
 void keys_run()
 {
-    // unsigned int input_flags = keys_get();
     for (size_t i = 0u; i < MAX_LISTENERS; i++) {
-        if (IsKeyPressed(key_listeners[i].key)) {
-            key_listeners[i].notify();
+        if (key_notifiers[i] && IsKeyPressed(key_notifiers[i]->key) &&
+            key_notifiers[i]->notify) {
+            key_notifiers[i]->notify(key_notifiers[i]);
         }
     }
 }
