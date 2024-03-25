@@ -7,9 +7,9 @@
 #define CONTAINER_OF(ptr, type, member) \
     ((type *)((char *)(ptr)-offsetof(type, member)))
 
-#define MIN_TO_SECS (60)
-
-#define MAX_POMO_NOTIF_EVT (8u)
+#define MIN_TO_SECS             (60)
+#define MAX_POMO_NOTIF_EVT      (8u)
+#define MIN_TO_TICKS(min, rate) ((min) * MIN_TO_SECS / (rate))
 
 typedef struct pomo_timer
 {
@@ -31,13 +31,11 @@ typedef struct pomo_ctx
     pomo_state state;
     pomo_state prev_state;
     pomo_timer timer;
-    unsigned int input_flags;
     const pomo_notif *notify_list[MAX_POMO_NOTIF_EVT];
 } pomo_ctx;
 
 static pomo_ctx pomo_ctx_;
 
-static unsigned int minutes_to_ticks(double rate, unsigned int minutes);
 static pomo_time ticks_to_pomotime(unsigned int ticks);
 static void long_break(pomo_ctx *ctx);
 static void short_break(pomo_ctx *ctx);
@@ -46,8 +44,7 @@ static void timer_init(pomo_timer *tmr, unsigned int tout,
                        pomo_timer_notif notif);
 static void timer_tick(pomo_timer *tmr);
 static void tmr_work_tout_notif(struct pomo_timer *timer);
-static void tmr_short_brk_tout_notif(struct pomo_timer *timer);
-static void tmr_long_brk_tout_notif(struct pomo_timer *timer);
+static void tmr_brk_tout_notif(struct pomo_timer *timer);
 static void pomo_notify(const pomo_notif *listeners[MAX_POMO_NOTIF_EVT],
                         pomo_evt evt);
 
@@ -55,11 +52,11 @@ void pomo_init(pomo_config config)
 {
     pomo_ctx_ = (pomo_ctx){.config = config};
     pomo_ctx_.long_timeout_ticks =
-        minutes_to_ticks(config.exec_rate, config.long_timeout);
+        MIN_TO_TICKS(config.long_timeout, config.exec_rate);
     pomo_ctx_.short_timeout_ticks =
-        minutes_to_ticks(config.exec_rate, config.short_timeout);
+        MIN_TO_TICKS(config.short_timeout, config.exec_rate);
     pomo_ctx_.work_timeout_ticks =
-        minutes_to_ticks(config.exec_rate, config.work_timeout);
+        MIN_TO_TICKS(config.work_timeout, config.exec_rate);
 
     /* Prepare to work. */
     pomo_ctx_.state = POMO_STATE_WAIT;
@@ -69,8 +66,6 @@ void pomo_init(pomo_config config)
 
 void pomo_run(void)
 {
-    pomo_ctx_.input_flags = keys_get();
-
     switch (pomo_ctx_.state) {
     case POMO_STATE_INIT:
         /* Init function was not called. */
@@ -121,6 +116,7 @@ void pomo_pause(void)
         pomo_ctx_.state == POMO_STATE_LONG_BREAK) {
         pomo_ctx_.prev_state = pomo_ctx_.state;
         pomo_ctx_.state = POMO_STATE_PAUSE;
+        pomo_notify(pomo_ctx_.notify_list, POMO_EVT_PAUSE);
     }
 }
 
@@ -128,6 +124,7 @@ void pomo_resume(void)
 {
     if (pomo_ctx_.state == POMO_STATE_PAUSE) {
         pomo_ctx_.state = pomo_ctx_.prev_state;
+        pomo_notify(pomo_ctx_.notify_list, POMO_EVT_PAUSE);
     }
 }
 
@@ -172,7 +169,7 @@ void long_break(pomo_ctx *ctx)
     ctx->state = POMO_STATE_LONG_BREAK;
     ctx->short_break_counts = 0u;
     pomo_notify(ctx->notify_list, POMO_EVT_LONG_BREAK);
-    timer_init(&ctx->timer, ctx->long_timeout_ticks, tmr_long_brk_tout_notif);
+    timer_init(&ctx->timer, ctx->long_timeout_ticks, tmr_brk_tout_notif);
 }
 
 void short_break(pomo_ctx *ctx)
@@ -180,7 +177,7 @@ void short_break(pomo_ctx *ctx)
     ctx->state = POMO_STATE_SHORT_BREAK;
     ctx->short_break_counts++;
     pomo_notify(ctx->notify_list, POMO_EVT_SHORT_BREAK);
-    timer_init(&ctx->timer, ctx->short_timeout_ticks, tmr_short_brk_tout_notif);
+    timer_init(&ctx->timer, ctx->short_timeout_ticks, tmr_brk_tout_notif);
 }
 
 void work(pomo_ctx *ctx)
@@ -188,12 +185,6 @@ void work(pomo_ctx *ctx)
     timer_init(&ctx->timer, ctx->work_timeout_ticks, tmr_work_tout_notif);
     ctx->state = POMO_STATE_WORK;
     pomo_notify(pomo_ctx_.notify_list, POMO_EVT_WORK);
-}
-
-static unsigned int minutes_to_ticks(double rate, unsigned int minutes)
-{
-    unsigned int ticks = minutes * MIN_TO_SECS / rate;
-    return ticks;
 }
 
 static pomo_time ticks_to_pomotime(unsigned int ticks)
@@ -233,13 +224,7 @@ static void tmr_work_tout_notif(struct pomo_timer *timer)
     }
 }
 
-static void tmr_short_brk_tout_notif(struct pomo_timer *timer)
-{
-    pomo_ctx *ctx = CONTAINER_OF(timer, pomo_ctx, timer);
-    work(ctx);
-}
-
-static void tmr_long_brk_tout_notif(struct pomo_timer *timer)
+static void tmr_brk_tout_notif(struct pomo_timer *timer)
 {
     pomo_ctx *ctx = CONTAINER_OF(timer, pomo_ctx, timer);
     work(ctx);
